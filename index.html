@@ -479,8 +479,12 @@ async function openLive(s){
   closeLive(); V.sel=s; renderGrid();
   $('v-panel').classList.remove('hide'); $('v-ovr').classList.remove('hide'); $('v-ovr').textContent='Connecting…'; setLive('Connecting','warn'); updRec();
   $('v-panel').scrollIntoView({behavior:'smooth'});
-  const stream = await getMic();
-  const call = V.peer.call(camId(acct.key,s), stream); V.call=call;
+  const mic = await getMic();
+  // Include a tiny placeholder video track so the call negotiates a video channel the camera can answer on.
+  const cv = document.createElement('canvas'); cv.width = cv.height = 16; cv.getContext('2d').fillRect(0,0,16,16);
+  const dummy = cv.captureStream(1).getVideoTracks()[0];
+  const stream = new MediaStream([...mic.getAudioTracks(), dummy]);
+  const call = V.peer.call(camId(acct.key,s), stream, { constraints:{ offerToReceiveVideo:true, offerToReceiveAudio:true } }); V.call=call;
   call.on('stream', rs => { const v=$('v-video'); v.srcObject=rs; v.play().catch(()=>{}); $('v-ovr').classList.add('hide'); setLive('LIVE','ok'); });
   call.on('close', ()=>{ if(V.call===call){ setLive('Ended','bad'); $('v-ovr').classList.remove('hide'); $('v-ovr').textContent='Stream ended'; } });
   call.on('error', ()=>{ setLive('Error','bad'); });

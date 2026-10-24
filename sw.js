@@ -1,6 +1,6 @@
 // Minimal service worker: caches the app shell so NightEye opens instantly and works as an installed app.
 // Live streaming still needs a network connection.
-const CACHE = 'nighteye-v1';
+const CACHE = 'nighteye-v2';
 const SHELL = ['./', './index.html', './manifest.webmanifest', './icons/icon.svg', './icons/icon-192.png', './icons/icon-512.png'];
 
 self.addEventListener('install', e => {
