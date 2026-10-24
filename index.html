@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b0f17">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<title>NightEye CCTV</title>
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<style>
+:root{--bg:#0b0f17;--card:#141b29;--card2:#1b2436;--line:#26324a;--txt:#e8eefc;--mut:#8b9ab8;--acc:#4f8cff;--acc2:#7c5cff;--ok:#22c55e;--bad:#ef4444;--warn:#f59e0b}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--txt);font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+body{padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
+button,input,select{font:inherit;color:inherit}
+.screen{display:none;min-height:100%;flex-direction:column;max-width:900px;margin:0 auto;padding:16px}
+.screen.on{display:flex}
+h1{font-size:26px;margin:0}h2{font-size:18px;margin:0}
+.logo{display:flex;align-items:center;gap:10px;font-weight:700;font-size:22px}
+.logo i{width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,var(--acc),var(--acc2));display:grid;place-items:center;font-style:normal}
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px}
+.field{display:flex;flex-direction:column;gap:6px;margin-bottom:12px}
+.field label{font-size:12px;color:var(--mut);text-transform:uppercase;letter-spacing:.06em}
+input,select{background:var(--card2);border:1px solid var(--line);border-radius:12px;padding:13px 14px;outline:none;width:100%}
+input:focus,select:focus{border-color:var(--acc)}
+.btn{border:0;border-radius:14px;padding:14px 18px;font-weight:600;background:var(--card2);border:1px solid var(--line);cursor:pointer}
+.btn.pri{background:linear-gradient(135deg,var(--acc),var(--acc2));border:0}
+.btn.bad{background:var(--bad);border:0}
+.btn.sm{padding:9px 12px;border-radius:10px;font-size:14px}
+.btn:disabled{opacity:.45}
+.btn:active{transform:scale(.98)}
+.row{display:flex;gap:10px;align-items:center}
+.grow{flex:1}
+.mut{color:var(--mut);font-size:13px}
+.center{margin:auto 0}
+.roles{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.role{padding:22px 12px;text-align:center;border-radius:18px;background:var(--card);border:1px solid var(--line);cursor:pointer}
+.role b{display:block;margin-top:8px}
+.role .ic{font-size:36px}
+.role:active{border-color:var(--acc)}
+header.bar{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border-radius:999px;background:var(--card2);font-size:12px;border:1px solid var(--line)}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--mut)}
+.dot.ok{background:var(--ok)}.dot.bad{background:var(--bad);animation:bl 1s infinite}.dot.warn{background:var(--warn)}
+@keyframes bl{50%{opacity:.25}}
+.vid{position:relative;background:#000;border-radius:18px;overflow:hidden;aspect-ratio:16/9;width:100%}
+.vid video{width:100%;height:100%;object-fit:contain;background:#000}
+.vid .tag{position:absolute;left:10px;top:10px;display:flex;gap:6px}
+.vid .tag .pill{background:rgba(0,0,0,.6);backdrop-filter:blur(6px);border-color:transparent}
+.vid .ovr{position:absolute;inset:0;display:grid;place-items:center;color:var(--mut);text-align:center;padding:20px;background:rgba(0,0,0,.55)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
+.cam{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px;cursor:pointer}
+.cam.sel{border-color:var(--acc);box-shadow:0 0 0 1px var(--acc)}
+.cam .n{font-weight:600;margin-top:6px}
+.tabs{display:flex;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:4px;margin:14px 0}
+.tabs button{flex:1;border:0;background:none;padding:10px;border-radius:10px;font-weight:600;color:var(--mut)}
+.tabs button.on{background:var(--card2);color:var(--txt)}
+.ptt{width:100%;padding:22px;border-radius:18px;font-size:17px;font-weight:700;border:0;background:var(--card2);border:1px solid var(--line);user-select:none;touch-action:none}
+.ptt.live{background:linear-gradient(135deg,#ef4444,#f97316);border:0;box-shadow:0 0 0 6px rgba(239,68,68,.2)}
+.list{display:flex;flex-direction:column;gap:8px}
+.item{display:flex;align-items:center;gap:10px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px}
+.item .t{font-weight:600;font-size:14px}
+.hide{display:none!important}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom));transform:translateX(-50%) translateY(30px);background:#000d;border:1px solid var(--line);padding:11px 16px;border-radius:12px;opacity:0;transition:.25s;z-index:99;max-width:90%;text-align:center;font-size:14px}
+.toast.on{opacity:1;transform:translateX(-50%)}
+.bar2{height:6px;border-radius:6px;background:var(--card2);overflow:hidden}.bar2 i{display:block;height:100%;background:var(--acc);width:0}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.warn{background:#f59e0b18;border:1px solid #f59e0b55;color:#fcd38a;padding:10px 12px;border-radius:12px;font-size:13px}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<section id="s-login" class="screen">
+  <div class="center">
+    <div class="logo"><i>👁</i> NightEye</div>
+    <p class="mut" style="margin:8px 0 22px">Turn spare Android phones into private security cameras. Same login on every device.</p>
+    <div class="card">
+      <div class="field"><label>Email / account name</label><input id="l-email" type="email" autocomplete="username" placeholder="you@example.com"></div>
+      <div class="field"><label>Password</label><input id="l-pass" type="password" autocomplete="current-password" placeholder="••••••••"></div>
+      <button class="btn pri" style="width:100%" id="l-go">Sign in</button>
+      <p class="mut" style="margin:12px 0 0">New here? Just pick any email + strong password on your first device, then use the exact same ones on your other devices — that links them. Your password is never sent anywhere; it's turned into a private key locally.</p>
+    </div>
+    <p id="l-warn" class="warn hide" style="margin-top:14px"></p>
+  </div>
+</section>
+
+<!-- ROLE -->
+<section id="s-role" class="screen">
+  <header class="bar"><div class="logo grow"><i>👁</i> NightEye</div><button class="btn sm" id="r-out">Sign out</button></header>
+  <p class="mut" id="r-who"></p>
+  <h1 style="margin:6px 0 16px">What is this device?</h1>
+  <div class="roles">
+    <div class="role" id="role-cam"><div class="ic">📷</div><b>Camera</b><span class="mut">Streams &amp; records</span></div>
+    <div class="role" id="role-view"><div class="ic">📺</div><b>Viewer</b><span class="mut">Watch, listen, talk</span></div>
+  </div>
+</section>
+
+<!-- CAMERA -->
+<section id="s-cam" class="screen">
+  <header class="bar">
+    <button class="btn sm" id="c-back">←</button>
+    <h2 class="grow">Camera mode</h2>
+    <span class="pill"><span class="dot" id="c-dot"></span><span id="c-state">Idle</span></span>
+  </header>
+  <div class="vid"><video id="c-video" autoplay muted playsinline></video>
+    <div class="tag"><span class="pill hide" id="c-rec"><span class="dot bad"></span>REC</span><span class="pill hide" id="c-viewers">👁 0</span></div>
+    <div class="ovr" id="c-ovr">Preview appears here</div>
+  </div>
+  <div class="tabs"><button class="on" data-t="setup">Setup</button><button data-t="hist">Recordings</button></div>
+  <div id="c-setup">
+    <div class="card">
+      <div class="two">
+        <div class="field"><label>Camera name</label><input id="c-name" value="Camera"></div>
+        <div class="field"><label>Slot (1–8)</label><select id="c-slot"></select></div>
+        <div class="field"><label>Quality</label><select id="c-q"><option value="720">HD 720p</option><option value="1080" selected>Full HD 1080p</option><option value="480">SD 480p</option></select></div>
+        <div class="field"><label>Lens</label><select id="c-face"><option value="environment">Back</option><option value="user">Front</option></select></div>
+        <div class="field"><label>Clip length</label><select id="c-seg"><option value="60">1 min</option><option value="120" selected>2 min</option><option value="300">5 min</option></select></div>
+        <div class="field"><label>Max storage</label><select id="c-max"><option value="500">500 MB</option><option value="1000">1 GB</option><option value="2000" selected>2 GB</option><option value="5000">5 GB</option></select></div>
+      </div>
+      <label class="row" style="margin-bottom:14px"><input type="checkbox" id="c-autorec" checked style="width:auto"> Record continuously (oldest clips auto-deleted)</label>
+      <div class="bar2" style="margin-bottom:6px"><i id="c-sbar"></i></div>
+      <p class="mut" id="c-sinfo" style="margin:0 0 14px"></p>
+      <button class="btn pri" style="width:100%" id="c-start">Start camera</button>
+      <button class="btn bad hide" style="width:100%" id="c-stop">Stop camera</button>
+      <p class="mut" style="margin:12px 0 0">Keep this phone plugged in with the screen on and this tab open. Use Chrome's “Add to Home screen” for a full-screen app.</p>
+    </div>
+  </div>
+  <div id="c-hist" class="hide"><div class="list" id="c-hlist"></div></div>
+</section>
+
+<!-- VIEWER -->
+<section id="s-view" class="screen">
+  <header class="bar">
+    <button class="btn sm" id="v-back">←</button>
+    <h2 class="grow">Viewer</h2>
+    <button class="btn sm" id="v-scan">⟳ Scan</button>
+  </header>
+  <div class="grid" id="v-grid"></div>
+  <p class="mut hide" id="v-empty" style="text-align:center;margin:18px 0">No cameras online. Start a camera on another device with this same login, then tap Scan.</p>
+
+  <div id="v-panel" class="hide" style="margin-top:14px">
+    <div class="vid"><video id="v-video" autoplay playsinline></video>
+      <div class="tag"><span class="pill" id="v-live"><span class="dot"></span><span>—</span></span><span class="pill hide" id="v-rec"><span class="dot bad"></span>REC</span></div>
+      <div class="ovr" id="v-ovr">Connecting…</div>
+    </div>
+    <div class="row" style="margin:10px 0">
+      <button class="btn sm grow" id="v-mute">🔊 Sound on</button>
+      <button class="btn sm grow" id="v-snap">📸 Snapshot</button>
+      <button class="btn sm grow" id="v-fs">⛶ Full</button>
+    </div>
+    <button class="ptt" id="v-ptt">🎙 Hold to talk</button>
+    <label class="row mut" style="margin:8px 0 0"><input type="checkbox" id="v-latch" style="width:auto"> Tap to toggle instead of hold</label>
+    <div class="tabs"><button class="on" data-t="live">Controls</button><button data-t="hist">History</button></div>
+    <div id="v-controls" class="row">
+      <button class="btn grow" id="v-togrec">Toggle recording</button>
+    </div>
+    <div id="v-hist" class="hide">
+      <div class="row" style="margin-bottom:10px"><button class="btn sm" id="v-hrefresh">Refresh</button><span class="mut" id="v-hinfo"></span></div>
+      <video id="v-play" controls playsinline class="hide" style="width:100%;border-radius:14px;background:#000;margin-bottom:10px"></video>
+      <div class="bar2 hide" id="v-prog" style="margin-bottom:10px"><i></i></div>
+      <div class="list" id="v-hlist"></div>
+    </div>
+  </div>
+</section>
+
+<div class="toast" id="toast"></div>
+
+<script>
+'use strict';
+/* ================= config ================= */
+const ICE = { iceServers: [
+  { urls: 'stun:stun.l.google.com:19302' },
+  { urls: 'stun:stun1.l.google.com:19302' },
+  // Public relay for strict networks (shared, rate-limited). Replace with your own TURN for production.
+  { urls: ['turn:openrelay.metered.ca:80','turn:openrelay.metered.ca:443','turns:openrelay.metered.ca:443?transport=tcp'], username:'openrelayproject', credential:'openrelayproject' }
+]};
+const MAX_SLOTS = 8, CHUNK = 32 * 1024;
+
+/* ================= helpers ================= */
+const $ = id => document.getElementById(id);
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+let toastT; function toast(m){const t=$('toast');t.textContent=m;t.classList.add('on');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('on'),2800)}
+function show(id){document.querySelectorAll('.screen').forEach(s=>s.classList.toggle('on',s.id===id))}
+const fmtT = ts => new Date(ts).toLocaleString([], {month:'short',day:'numeric',hour:'2-digit',minute:'2-digit',second:'2-digit'});
+const fmtS = b => b>1e9?(b/1e9).toFixed(2)+' GB':(b/1e6).toFixed(1)+' MB';
+const fmtD = s => Math.floor(s/60)+':'+String(Math.round(s%60)).padStart(2,'0');
+const store = { get:k=>{try{return localStorage.getItem('ne_'+k)}catch(e){return null}}, set:(k,v)=>{try{localStorage.setItem('ne_'+k,v)}catch(e){}}, del:k=>{try{localStorage.removeItem('ne_'+k)}catch(e){}} };
+function wireTabs(root, cb){root.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{root.querySelectorAll('.tabs button').forEach(x=>x.classList.toggle('on',x===b));cb(b.dataset.t)})}
+
+/* ================= account ================= */
+let acct = null; // {email, key}
+async function deriveKey(email, pass){
+  const d = new TextEncoder().encode(email.trim().toLowerCase()+'|'+pass+'|nighteye-v1');
+  const h = await crypto.subtle.digest('SHA-256', d);
+  return [...new Uint8Array(h)].slice(0,12).map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+const camId = (key, slot) => 'ne'+key+'c'+slot;
+
+$('l-go').onclick = async () => {
+  const e = $('l-email').value.trim(), p = $('l-pass').value;
+  if(!e || p.length < 6) return toast('Enter email and a password of 6+ characters');
+  if(!window.isSecureContext || !crypto.subtle) return toast('Open this page over HTTPS');
+  acct = { email:e, key: await deriveKey(e,p) };
+  store.set('email', e); store.set('key', acct.key);
+  enterRole();
+};
+$('l-pass').addEventListener('keydown', e=>{if(e.key==='Enter')$('l-go').click()});
+function enterRole(){ $('r-who').textContent = 'Signed in as '+acct.email; show('s-role'); }
+$('r-out').onclick = () => { store.del('key'); acct=null; $('l-pass').value=''; show('s-login'); };
+$('role-cam').onclick = () => { initCamUI(); show('s-cam'); };
+$('role-view').onclick = () => { show('s-view'); startViewer(); };
+
+/* ================= IndexedDB (recordings) ================= */
+let dbp;
+function db(){ return dbp || (dbp = new Promise((res,rej)=>{
+  const r = indexedDB.open('nighteye',1);
+  r.onupgradeneeded = () => { r.result.createObjectStore('meta',{keyPath:'id'}); r.result.createObjectStore('blobs'); };
+  r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
+}));}
+async function tx(stores, mode, fn){ const d = await db(); return new Promise((res,rej)=>{ const t=d.transaction(stores,mode); let out; t.oncomplete=()=>res(out); t.onerror=()=>rej(t.error); out=fn(t); }); }
+const req = r => new Promise((res,rej)=>{r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)});
+const Rec = {
+  async put(meta, blob){ await tx(['meta','blobs'],'readwrite',t=>{t.objectStore('meta').put(meta);t.objectStore('blobs').put(blob,meta.id)}); },
+  async list(){ const d=await db(); const all = await req(d.transaction('meta').objectStore('meta').getAll()); return all.sort((a,b)=>b.ts-a.ts); },
+  async blob(id){ const d=await db(); return req(d.transaction('blobs').objectStore('blobs').get(id)); },
+  async del(id){ await tx(['meta','blobs'],'readwrite',t=>{t.objectStore('meta').delete(id);t.objectStore('blobs').delete(id)}); },
+  async prune(maxBytes){ const l = (await this.list()); let tot = l.reduce((s,x)=>s+x.size,0); for(let i=l.length-1;i>=0 && tot>maxBytes;i--){ await this.del(l[i].id); tot-=l[i].size; } return tot; }
+};
+
+/* ================= shared history UI ================= */
+// src: {list():Promise<meta[]>, get(id,onProg):Promise<Blob>, del(id):Promise, player:HTMLVideoElement, progEl}
+async function renderHistory(listEl, src, infoEl){
+  listEl.innerHTML = '<p class="mut">Loading…</p>';
+  let items = [];
+  try { items = await src.list(); } catch(e){ listEl.innerHTML='<p class="mut">Could not load recordings.</p>'; return; }
+  if(infoEl) infoEl.textContent = items.length+' clips · '+fmtS(items.reduce((s,x)=>s+x.size,0));
+  if(!items.length){ listEl.innerHTML='<p class="mut" style="text-align:center;margin:16px 0">No recordings yet.</p>'; return; }
+  listEl.innerHTML='';
+  for(const m of items){
+    const el = document.createElement('div'); el.className='item';
+    el.innerHTML = `<div class="grow"><div class="t">${fmtT(m.ts)}</div><div class="mut">${fmtD(m.dur)} · ${fmtS(m.size)}</div></div>
+      <button class="btn sm pri" data-a="p">▶ Play</button><button class="btn sm" data-a="d">⬇</button><button class="btn sm" data-a="x">🗑</button>`;
+    el.onclick = async e => {
+      const a = e.target.dataset.a; if(!a) return;
+      const pg = src.progEl;
+      try{
+        if(a==='x'){ if(!confirm('Delete this clip?')) return; await src.del(m.id); return renderHistory(listEl,src,infoEl); }
+        if(pg){ pg.classList.remove('hide'); pg.firstElementChild.style.width='0'; }
+        const blob = await src.get(m.id, f=>{ if(pg) pg.firstElementChild.style.width=(f*100)+'%'; });
+        if(pg) pg.classList.add('hide');
+        if(a==='p'){ const p=src.player; if(p.src) URL.revokeObjectURL(p.src); p.src=URL.createObjectURL(blob); p.classList.remove('hide'); p.play().catch(()=>{}); p.scrollIntoView({behavior:'smooth',block:'center'}); }
+        if(a==='d'){ const u=URL.createObjectURL(blob), l=document.createElement('a'); l.href=u; l.download='nighteye-'+m.ts+'.'+(m.mime.includes('mp4')?'mp4':'webm'); l.click(); setTimeout(()=>URL.revokeObjectURL(u),5000); }
+      }catch(err){ if(pg) pg.classList.add('hide'); toast('Failed: '+(err.message||err)); }
+    };
+    listEl.appendChild(el);
+  }
+}
+
+/* ================= CAMERA ================= */
+const C = { peer:null, stream:null, recorder:null, segTimer:null, conns:new Set(), calls:new Set(), lock:null, running:false, wantRec:true, segStart:0, retry:0 };
+let camInit = false;
+function initCamUI(){
+  if(camInit) return; camInit = true;
+  for(let i=1;i<=MAX_SLOTS;i++){ const o=document.createElement('option'); o.value=i;o.textContent='Slot '+i; $('c-slot').appendChild(o); }
+  $('c-name').value = store.get('camname') || 'Camera';
+  $('c-slot').value = store.get('camslot') || '1';
+  ['q','face','seg','max'].forEach(k=>{ const v=store.get('cam_'+k); if(v) $('c-'+k).value=v; });
+  $('c-autorec').checked = store.get('cam_rec')!=='0';
+  wireTabs($('s-cam'), t=>{ $('c-setup').classList.toggle('hide',t!=='setup'); $('c-hist').classList.toggle('hide',t!=='hist'); if(t==='hist') camHistory(); });
+  updateStorage();
+}
+async function updateStorage(){
+  try{ const l=await Rec.list(), used=l.reduce((s,x)=>s+x.size,0), max=+$('c-max').value*1e6;
+    $('c-sbar').style.width=Math.min(100,used/max*100)+'%'; $('c-sinfo').textContent=l.length+' clips · '+fmtS(used)+' of '+fmtS(max)+' used'; }catch(e){}
+}
+function camHistory(){ renderHistory($('c-hlist'), { list:()=>Rec.list(), get:id=>Rec.blob(id), del:id=>Rec.del(id), player:$('c-video'), progEl:null }); }
+function setCamState(txt, cls){ $('c-state').textContent=txt; $('c-dot').className='dot '+(cls||''); }
+$('c-back').onclick = () => { if(C.running && !confirm('Stop the camera and leave?')) return; stopCamera(); show('s-role'); };
+$('c-start').onclick = startCamera;
+$('c-stop').onclick = stopCamera;
+
+async function openStream(){
+  const q = +$('c-q').value, dims = {480:[854,480],720:[1280,720],1080:[1920,1080]}[q];
+  if(C.stream) C.stream.getTracks().forEach(t=>t.stop());
+  C.stream = await navigator.mediaDevices.getUserMedia({
+    video:{ facingMode:$('c-face').value, width:{ideal:dims[0]}, height:{ideal:dims[1]}, frameRate:{ideal:30,max:30} },
+    audio:{ echoCancellation:true, noiseSuppression:true, autoGainControl:true }
+  });
+  const v=$('c-video'); v.srcObject=C.stream; v.muted=true; $('c-ovr').classList.add('hide');
+}
+async function startCamera(){
+  if(!acct){ return toast('Sign in first'); }
+  if(!navigator.mediaDevices?.getUserMedia) return toast('Camera needs HTTPS in Chrome');
+  ['name','q','face','seg','max'].forEach(k=>store.set(k==='name'?'camname':'cam_'+k,$('c-'+k).value));
+  store.set('camslot',$('c-slot').value); store.set('cam_rec',$('c-autorec').checked?'1':'0');
+  try{ await openStream(); }catch(e){ return toast('Camera/mic permission denied'); }
+  C.wantRec = $('c-autorec').checked; C.running = true; C.retry = 0;
+  $('c-start').classList.add('hide'); $('c-stop').classList.remove('hide');
+  ['name','slot','q','face','seg','max'].forEach(k=>$('c-'+k).disabled=true);
+  try{ C.lock = await navigator.wakeLock?.request('screen'); }catch(e){}
+  connectPeer();
+  if(C.wantRec) startRecording();
+  Rec.persist?.(); navigator.storage?.persist?.();
+}
+function connectPeer(){
+  if(!C.running) return;
+  setCamState('Connecting…','warn');
+  const id = camId(acct.key, $('c-slot').value);
+  const p = new Peer(id, { config:ICE, debug:0 });
+  C.peer = p;
+  p.on('open', () => { setCamState('Online','ok'); C.retry=0; });
+  p.on('connection', conn => {
+    C.conns.add(conn); updViewers();
+    conn.on('data', m => camMsg(conn,m));
+    conn.on('close', () => { C.conns.delete(conn); updViewers(); });
+    conn.on('error', () => { C.conns.delete(conn); updViewers(); });
+  });
+  p.on('call', call => {
+    call.answer(C.stream);
+    C.calls.add(call); updViewers();
+    call.on('stream', s => { let a=$('c-talk'); if(!a){a=document.createElement('audio');a.id='c-talk';a.autoplay=true;document.body.appendChild(a);} a.srcObject=s; a.play().catch(()=>{}); });
+    const done=()=>{C.calls.delete(call);updViewers()}; call.on('close',done); call.on('error',done);
+  });
+  p.on('disconnected', () => { if(C.running){ setCamState('Reconnecting…','warn'); try{p.reconnect()}catch(e){} } });
+  p.on('error', err => {
+    if(err.type==='unavailable-id'){
+      setCamState('Slot in use','bad'); toast('This slot is already used by another camera on your account — pick another slot.');
+      stopCamera(); return;
+    }
+    if(['network','server-error','socket-error','socket-closed','disconnected'].includes(err.type) && C.running){
+      setCamState('Reconnecting…','warn'); try{p.destroy()}catch(e){} setTimeout(connectPeer, Math.min(15000, 1500*(++C.retry)));
+    }
+  });
+}
+function updViewers(){ const n=C.calls.size; $('c-viewers').classList.toggle('hide', !C.running); $('c-viewers').textContent='👁 '+n; }
+async function camMsg(conn, m){
+  if(!m || !m.t) return;
+  try{
+    if(m.t==='hello' || m.t==='status'){
+      conn.send({ t:'info', name:$('c-name').value, rec:!!C.recorder && C.recorder.state==='recording', res:$('c-q').value });
+    } else if(m.t==='list'){
+      conn.send({ t:'list', items: await Rec.list() });
+    } else if(m.t==='get'){
+      const blob = await Rec.blob(m.id); if(!blob){ return conn.send({t:'err',id:m.id,msg:'Clip not found'}); }
+      const buf = await blob.arrayBuffer();
+      conn.send({ t:'start', id:m.id, size:buf.byteLength, mime:blob.type });
+      for(let o=0;o<buf.byteLength;o+=CHUNK){
+        while(conn.dataChannel && conn.dataChannel.bufferedAmount>1e6) await sleep(25);
+        if(!conn.open) return;
+        conn.send(buf.slice(o,o+CHUNK));
+      }
+      conn.send({ t:'end', id:m.id });
+    } else if(m.t==='del'){
+      await Rec.del(m.id); updateStorage(); conn.send({t:'deleted',id:m.id});
+    } else if(m.t==='rec'){
+      C.wantRec = !!m.on; C.wantRec ? startRecording() : stopRecording(false);
+      conn.send({ t:'info', name:$('c-name').value, rec:C.wantRec, res:$('c-q').value });
+    }
+  }catch(e){ try{conn.send({t:'err',msg:String(e.message||e)})}catch(_){} }
+}
+/* recording: stop/start recorder each segment so every clip is an independent playable file */
+function pickMime(){ const c=['video/mp4;codecs=avc1,mp4a.40.2','video/webm;codecs=vp9,opus','video/webm;codecs=vp8,opus','video/webm']; return c.find(m=>window.MediaRecorder && MediaRecorder.isTypeSupported(m)) || ''; }
+function startRecording(){
+  if(!C.stream || !window.MediaRecorder || (C.recorder && C.recorder.state==='recording')) return;
+  const bps = {480:1200000,720:2500000,1080:4500000}[$('c-q').value];
+  let rec;
+  try{ rec = new MediaRecorder(C.stream, { mimeType:pickMime()||undefined, videoBitsPerSecond:bps, audioBitsPerSecond:96000 }); }catch(e){ return toast('Recording not supported on this browser'); }
+  const parts=[]; C.segStart=Date.now(); const t0=C.segStart;
+  rec.ondataavailable = e => { if(e.data.size) parts.push(e.data); };
+  rec.onstop = async () => {
+    const blob = new Blob(parts,{type:rec.mimeType||'video/webm'});
+    if(blob.size>2000){
+      try{ await Rec.put({ id:t0+'-'+Math.random().toString(36).slice(2,6), ts:t0, dur:(Date.now()-t0)/1000, size:blob.size, mime:blob.type }, blob);
+           await Rec.prune(+$('c-max').value*1e6); }
+      catch(e){ toast('Storage full — oldest clips will be removed'); await Rec.prune(+$('c-max').value*5e5).catch(()=>{}); }
+      updateStorage();
+    }
+    if(C.running && C.wantRec && C.recorder===rec){ C.recorder=null; startRecording(); }
+  };
+  rec.start(1000); C.recorder=rec; $('c-rec').classList.remove('hide');
+  clearTimeout(C.segTimer); C.segTimer=setTimeout(()=>{ if(rec.state==='recording') rec.stop(); }, +$('c-seg').value*1000);
+}
+function stopRecording(){ clearTimeout(C.segTimer); const r=C.recorder; C.wantRec=false; if(r && r.state!=='inactive'){ r.stop(); } C.recorder=null; $('c-rec').classList.add('hide'); }
+function stopCamera(){
+  const was = C.running; C.running=false; stopRecording();
+  clearTimeout(C.segTimer);
+  C.conns.forEach(c=>{try{c.close()}catch(e){}}); C.conns.clear(); C.calls.forEach(c=>{try{c.close()}catch(e){}}); C.calls.clear();
+  try{C.peer?.destroy()}catch(e){} C.peer=null;
+  if(C.stream){ C.stream.getTracks().forEach(t=>t.stop()); C.stream=null; }
+  try{C.lock?.release()}catch(e){} C.lock=null;
+  $('c-video').srcObject=null; $('c-ovr').classList.remove('hide');
+  $('c-start').classList.remove('hide'); $('c-stop').classList.add('hide');
+  ['name','slot','q','face','seg','max'].forEach(k=>$('c-'+k).disabled=false);
+  if(was) setCamState('Stopped',''); updViewers();
+}
+document.addEventListener('visibilitychange', async () => {
+  if(document.visibilityState==='visible' && C.running){ try{ C.lock = await navigator.wakeLock?.request('screen'); }catch(e){} }
+});
+window.addEventListener('online', () => { if(C.running && C.peer && C.peer.disconnected){ try{C.peer.reconnect()}catch(e){} } });
+
+/* ================= VIEWER ================= */
+const V = { peer:null, cams:{}, sel:null, call:null, mic:null, micTrack:null, scanTimer:null, xfer:null, active:false, ready:null };
+function startViewer(){
+  if(!acct) return;
+  V.active = true;
+  if(!V.peer || V.peer.destroyed){
+    V.ready = new Promise(res=>{ V.peer = new Peer('nv'+Math.random().toString(36).slice(2,12), { config:ICE, debug:0 });
+      V.peer.on('open',()=>res()); });
+    V.peer.on('error', err => {
+      if(err.type==='peer-unavailable') return; // normal: empty slot
+      if(['network','server-error','socket-error','socket-closed'].includes(err.type)){ toast('Connection problem — retrying'); }
+    });
+    V.peer.on('disconnected',()=>{ try{V.peer.reconnect()}catch(e){} });
+  }
+  renderGrid(); scan();
+  clearInterval(V.scanTimer); V.scanTimer = setInterval(()=>{ if(V.active && document.visibilityState==='visible') scan(true); }, 15000);
+}
+$('v-back').onclick = () => { closeLive(); V.active=false; clearInterval(V.scanTimer); show('s-role'); };
+$('v-scan').onclick = () => scan();
+async function scan(quiet){
+  await V.ready;
+  if(!quiet) { $('v-scan').disabled=true; $('v-scan').textContent='Scanning…'; }
+  const jobs=[];
+  for(let s=1;s<=MAX_SLOTS;s++){
+    const c=V.cams[s]; if(c && c.conn && c.conn.open) { try{ c.conn.send({t:'status'}) }catch(e){} continue; }
+    jobs.push(new Promise(res=>{
+      const conn = V.peer.connect(camId(acct.key,s), { reliable:true, serialization:'binary' });
+      const to = setTimeout(()=>{ if(!conn.open){ try{conn.close()}catch(e){} res(); } }, 6000);
+      conn.on('open', ()=>{ clearTimeout(to); V.cams[s]={ conn, name:'Camera '+s, rec:false, online:true }; conn.send({t:'hello'}); wireConn(s,conn); res(); renderGrid(); });
+      conn.on('error', ()=>{ clearTimeout(to); res(); });
+    }));
+  }
+  await Promise.all(jobs);
+  renderGrid(); $('v-scan').disabled=false; $('v-scan').textContent='⟳ Scan';
+}
+function wireConn(s, conn){
+  conn.on('close', ()=>{ delete V.cams[s]; renderGrid(); if(V.sel===s){ $('v-ovr').classList.remove('hide'); $('v-ovr').textContent='Camera went offline'; setLive('Offline','bad'); } });
+  conn.on('data', m => {
+    if(m instanceof ArrayBuffer || ArrayBuffer.isView(m)){
+      const x=V.xfer; if(!x) return; const u = m instanceof ArrayBuffer ? m : m.buffer.slice(m.byteOffset,m.byteOffset+m.byteLength);
+      x.parts.push(u); x.got+=u.byteLength; x.onProg?.(Math.min(1,x.got/x.size)); return;
+    }
+    switch(m.t){
+      case 'info': V.cams[s].name=m.name; V.cams[s].rec=m.rec; renderGrid(); if(V.sel===s) updRec(); break;
+      case 'list': V.listRes?.(m.items); V.listRes=null; break;
+      case 'start': if(V.xfer) { V.xfer.size=m.size; V.xfer.mime=m.mime; } break;
+      case 'end': if(V.xfer){ const x=V.xfer; V.xfer=null; x.res(new Blob(x.parts,{type:x.mime||'video/webm'})); } break;
+      case 'err': if(V.xfer){ V.xfer.rej(new Error(m.msg)); V.xfer=null; } V.listRes=null; toast(m.msg||'Camera error'); break;
+      case 'deleted': V.delRes?.(); V.delRes=null; break;
+    }
+  });
+}
+function renderGrid(){
+  const g=$('v-grid'); g.innerHTML=''; const slots=Object.keys(V.cams).map(Number).sort();
+  $('v-empty').classList.toggle('hide', slots.length>0);
+  slots.forEach(s=>{ const c=V.cams[s]; const d=document.createElement('div'); d.className='cam'+(V.sel===s?' sel':'');
+    d.innerHTML=`<div class="row"><span class="dot ok"></span><span class="mut">Slot ${s}</span><span class="grow"></span>${c.rec?'<span class="dot bad"></span>':''}</div><div class="n">${c.name.replace(/[<>&]/g,'')}</div><div class="mut">Tap to watch</div>`;
+    d.onclick=()=>openLive(s); g.appendChild(d); });
+}
+function setLive(txt,cls){ const p=$('v-live'); p.children[0].className='dot '+(cls||''); p.children[1].textContent=txt; }
+function updRec(){ const c=V.cams[V.sel]; $('v-rec').classList.toggle('hide', !(c&&c.rec)); $('v-togrec').textContent = c&&c.rec ? '⏹ Stop recording' : '⏺ Start recording'; }
+
+async function getMic(){
+  if(V.mic) return V.mic;
+  try{
+    V.mic = await navigator.mediaDevices.getUserMedia({ audio:{ echoCancellation:true, noiseSuppression:true, autoGainControl:true } });
+    V.micTrack = V.mic.getAudioTracks()[0]; V.micTrack.enabled = false;
+  }catch(e){
+    // silent fallback so the call still negotiates; talking disabled
+    const ac = new (window.AudioContext||window.webkitAudioContext)(); const d=ac.createMediaStreamDestination();
+    V.mic = d.stream; V.micTrack=null; toast('Mic blocked — you can watch but not talk');
+  }
+  return V.mic;
+}
+async function openLive(s){
+  closeLive(); V.sel=s; renderGrid();
+  $('v-panel').classList.remove('hide'); $('v-ovr').classList.remove('hide'); $('v-ovr').textContent='Connecting…'; setLive('Connecting','warn'); updRec();
+  $('v-panel').scrollIntoView({behavior:'smooth'});
+  const stream = await getMic();
+  const call = V.peer.call(camId(acct.key,s), stream); V.call=call;
+  call.on('stream', rs => { const v=$('v-video'); v.srcObject=rs; v.play().catch(()=>{}); $('v-ovr').classList.add('hide'); setLive('LIVE','ok'); });
+  call.on('close', ()=>{ if(V.call===call){ setLive('Ended','bad'); $('v-ovr').classList.remove('hide'); $('v-ovr').textContent='Stream ended'; } });
+  call.on('error', ()=>{ setLive('Error','bad'); });
+  const tabsOn = $('v-panel').querySelector('.tabs .on'); if(tabsOn?.dataset.t==='hist') loadRemoteHistory();
+}
+function closeLive(){ try{V.call?.close()}catch(e){} V.call=null; $('v-video').srcObject=null; setPtt(false); }
+$('v-mute').onclick = () => { const v=$('v-video'); v.muted=!v.muted; $('v-mute').textContent=v.muted?'🔇 Sound off':'🔊 Sound on'; };
+$('v-snap').onclick = () => { const v=$('v-video'); if(!v.videoWidth) return toast('No video yet'); const c=document.createElement('canvas'); c.width=v.videoWidth;c.height=v.videoHeight; c.getContext('2d').drawImage(v,0,0); c.toBlob(b=>{const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='snapshot-'+Date.now()+'.png';a.click();toast('Snapshot saved')},'image/png'); };
+$('v-fs').onclick = () => { const v=$('v-video'); (v.requestFullscreen||v.webkitRequestFullscreen||(()=>{})).call(v); };
+$('v-togrec').onclick = () => { const c=V.cams[V.sel]; if(c?.conn?.open) c.conn.send({t:'rec', on:!c.rec}); };
+
+/* push to talk */
+function setPtt(on){ if(V.micTrack) V.micTrack.enabled=on; const b=$('v-ptt'); b.classList.toggle('live',on); b.textContent=on?'🔴 Talking… release to stop':'🎙 Hold to talk'; if(on) navigator.vibrate?.(20); }
+(function(){
+  const b=$('v-ptt'); let down=false;
+  const latch=()=>$('v-latch').checked;
+  b.addEventListener('pointerdown', async e=>{ e.preventDefault(); if(!V.call) return toast('Open a camera first'); await getMic(); if(!V.micTrack) return toast('Mic not available'); if(latch()){ setPtt(!V.micTrack.enabled); return; } down=true; b.setPointerCapture(e.pointerId); setPtt(true); });
+  const up=()=>{ if(down && !latch()){ down=false; setPtt(false); } };
+  b.addEventListener('pointerup',up); b.addEventListener('pointercancel',up); b.addEventListener('contextmenu',e=>e.preventDefault());
+})();
+
+/* remote history */
+wireTabs($('v-panel'), t=>{ $('v-controls').classList.toggle('hide',t!=='live'); $('v-hist').classList.toggle('hide',t!=='hist'); if(t==='hist') loadRemoteHistory(); });
+$('v-hrefresh').onclick = () => loadRemoteHistory();
+function loadRemoteHistory(){
+  const s=V.sel, c=V.cams[s]; if(!c?.conn?.open) return toast('Camera offline');
+  renderHistory($('v-hlist'), {
+    list: () => new Promise((res,rej)=>{ V.listRes=res; c.conn.send({t:'list'}); setTimeout(()=>{ if(V.listRes){V.listRes=null;rej(new Error('timeout'))} },10000); }),
+    get: (id,onProg) => new Promise((res,rej)=>{ if(V.xfer) return rej(new Error('Another download in progress')); V.xfer={parts:[],got:0,size:1,onProg,res,rej}; c.conn.send({t:'get',id}); }),
+    del: id => new Promise(res=>{ V.delRes=res; c.conn.send({t:'del',id}); setTimeout(res,3000); }),
+    player: $('v-play'), progEl: $('v-prog')
+  }, $('v-hinfo'));
+}
+
+/* ================= boot ================= */
+(function boot(){
+  if(!window.isSecureContext){ const w=$('l-warn'); w.textContent='This page must be opened over HTTPS (or localhost) for camera and microphone access. Host it on any HTTPS static host such as Netlify, GitHub Pages or Cloudflare Pages.'; w.classList.remove('hide'); }
+  const k=store.get('key'), e=store.get('email'); if(e) $('l-email').value=e;
+  if(k && e){ acct={email:e,key:k}; enterRole(); } else show('s-login');
+  if('serviceWorker' in navigator && location.protocol.startsWith('http')){ navigator.serviceWorker.register('sw.js').catch(()=>{}); }
+})();
+</script>
+</body>
